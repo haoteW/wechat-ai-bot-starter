@@ -2,6 +2,7 @@ import { Router } from "express";
 import { createTextReply } from "../services/reply";
 import { verifyWechatSignature } from "../utils/signature";
 import { buildTextReplyXml, parseWechatMessageXml } from "../utils/xml";
+import { canUserSendMessage } from "../utils/usageGuard";
 
 export const wechatRouter = Router();
 
@@ -40,10 +41,13 @@ wechatRouter.post("/", async (req, res) => {
     const rawXml = typeof req.body === "string" ? req.body : "";
     const message = await parseWechatMessageXml(rawXml);
 
-    const content =
-      message.MsgType === "text"
+    let content = "当前仅支持文本消息。";
+
+    if (message.MsgType === "text") {
+      content = canUserSendMessage(message.FromUserName)
         ? await createTextReply(message.Content ?? "")
-        : "当前仅支持文本消息。";
+        : "消息太频繁了，请稍后再试。";
+    }
 
     const replyXml = buildTextReplyXml({
       toUserName: message.FromUserName,
